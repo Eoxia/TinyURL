@@ -64,7 +64,6 @@ if ($action == 'generate_url' && $permissionToAdd) {
     if ((dol_strlen($originalUrl) > 0 || dol_strlen(getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL')) > 0) && $NbUrl > 0)  {
         for ($i = 1; $i <= $NbUrl; $i++) {
             $shortener = new Shortener($db);
-            $shortener->ref = $shortener->getNextNumRef();
             if (dol_strlen($originalUrl) > 0) {
                 $shortener->original_url = $originalUrl . $urlParameters;
             } else {
@@ -72,10 +71,8 @@ if ($action == 'generate_url' && $permissionToAdd) {
             }
             $shortener->methode = $urlMethode;
 
-            $shortener->create($user);
-
             // UrlType : none because we want mass generation url (all can be use but need to change this code)
-            $result = set_easy_url_link($shortener, 'none', $urlMethode);
+            $result = set_easy_url_link($shortener, 'none', null, $urlMethode);
             if (!empty($result) && is_object($result)) {
                 setEventMessage($result->message, 'errors');
                 $error++;

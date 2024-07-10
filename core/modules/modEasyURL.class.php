@@ -384,7 +384,7 @@ class modEasyURL extends DolibarrModules
      */
     public function init($options = ''): int
     {
-        global $conf;
+        global $conf, $user;
 
         // Permissions
         $this->remove($options);
@@ -399,35 +399,65 @@ class modEasyURL extends DolibarrModules
         dolibarr_set_const($this->db, 'EASYURL_VERSION', $this->version, 'chaine', 0, '', $conf->entity);
         dolibarr_set_const($this->db, 'EASYURL_DB_VERSION', $this->version, 'chaine', 0, '', $conf->entity);
 
-        // Create extrafields during init
-        require_once DOL_DOCUMENT_ROOT . '/core/class/extrafields.class.php';
-        $extraFields = new ExtraFields($this->db);
+        if (!getDolGlobalInt('EASYURL_BACKWARD_EXTRAFIELDS') && version_compare(getDolGlobalString('EASYURL_VERSION'), '1.1.0', '>=')) {
+            // Create extrafields during init
+            require_once DOL_DOCUMENT_ROOT . '/core/class/extrafields.class.php';
 
-        // Propal extrafields
-        $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'propal', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
-        $extraFields->addExtraField('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', 2000, '', 'propal', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+            require_once __DIR__ . '/../../lib/easyurl_function.lib.php';
 
-        // Order extrafields
-        $extraFields->update('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', '', 'commande', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
-        $extraFields->addExtraField('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', 2000, '', 'commande', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+            $extraFields = new ExtraFields($this->db);
 
-        // Invoice extrafields
-        $extraFields->update('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', '', 'facture', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
-        $extraFields->addExtraField('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', 2000, '', 'facture', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+            $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'propal', 0, 0, 2000, '', '', '', 0, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
+            $extraFields->update('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', '', 'commande', 0, 0, 2000, '', '', '', 0, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
+            $extraFields->update('easy_url_payment_link', 'EasyUrlPaymentLink', 'url', '', 'facture', 0, 0, 2000, '', '', '', 0, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
+            $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'contrat', 0, 0, 2000, '', '', '', 0, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
+            $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'fichinter', 0, 0, 2000, '', '', '', 0, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
 
-        // Contract extrafields
-        $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'contrat', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
-        $extraFields->addExtraField('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', 2000, '', 'contrat', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+            // All element type extrafields
+            $shortenerUrlTypeDictionaries = saturne_fetch_dictionary('c_shortener_url_type');
+            $objectsMetadata              = saturne_get_objects_metadata();
+            foreach ($objectsMetadata as $objectMetadata) {
+                $objects = saturne_fetch_all_object_type($objectMetadata['class_name'], '', '', 0, 0, [], 'AND', true);
+                if (is_array($objects) && !empty($objects)) {
+                    foreach ($objects as $object) {
+                        $urlTypes = ['signature', 'payment'];
+                        foreach ($urlTypes as $urlType) {
+                            if (isset($object->array_options['options_easy_url_' . $urlType . '_link']) && !empty($object->array_options['options_easy_url_' . $urlType . '_link'])) {
+                                $shortener = new Shortener($this->db);
 
-        // Fiche inter extrafields
-        $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'fichinter', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
-        $extraFields->addExtraField('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', 2000, '', 'fichinter', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+                                $result = $shortener->fetch('', '', ' AND short_url = "' . $object->array_options['options_easy_url_' . $urlType  . '_link'] . '"');
+                                if ($result == 0) {
+                                    $shortenerData = get_easy_url_link($object->array_options['options_easy_url_' . $urlType  . '_link'], $urlType);
 
-        // All element type extrafields
-        $objectsMetadata = saturne_get_objects_metadata();
-        foreach($objectsMetadata as $objectMetadata) {
-            $extraFields->update('easy_url_all_link', 'EasyUrlAllLink', 'url', '', $objectMetadata['table_element'], 0, 0, 2100, '', '', '', 5, 'EasyUrlAllLinkHelp', '', '', 0, 'easyurl@easyurl');
-            $extraFields->addExtraField('easy_url_all_link', 'EasyUrlAllLink', 'url', 2100, '', $objectMetadata['table_element'], 0, 0, '', '', '', '', 5, 'EasyUrlAllLinkHelp', '', 0, 'easyurl@easyurl');
+                                    $shortener->ref          = $shortener->getNextNumRef();
+                                    $shortener->ref_ext      = 'easy_url_' . $urlType  . '_link';
+                                    $shortener->entity       = $conf->entity;
+                                    $shortener->status       = Shortener::STATUS_ASSIGN;
+                                    $shortener->label        = $shortenerData->title;
+                                    $shortener->short_url    = $object->array_options['options_easy_url_' . $urlType  . '_link'];
+                                    $shortener->original_url = $shortenerData->url;
+                                    if (is_array($shortenerUrlTypeDictionaries) && !empty($shortenerUrlTypeDictionaries)) {
+                                        foreach ($shortenerUrlTypeDictionaries as $shortenerUrlTypeDictionary) {
+                                            if ($shortenerUrlTypeDictionary->ref == ucfirst($urlType)) {
+                                                $shortener->type = $shortenerUrlTypeDictionary->id;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    $shortener->methode      = 'yourls';
+                                    $shortener->element_type = $objectMetadata['tab_type'];
+                                    $shortener->fk_element   = $object->id;
+
+                                    $shortener->create($user);
+                                }
+                            }
+                        }
+                    }
+                }
+                $extraFields->update('easy_url_all_link', 'EasyUrlAllLink', 'url', '', $objectMetadata['table_element'], 0, 0, 2100, '', '', '', 0, 'EasyUrlAllLinkHelp', '', '', 0, 'easyurl@easyurl');
+            }
+
+            dolibarr_set_const($this->db, 'EASYURL_BACKWARD_EXTRAFIELDS', 1, 'integer', 0, '', $conf->entity);
         }
 
         return $this->_init($sql, $options);
