@@ -33,21 +33,18 @@
  */
 function easyurl_completesubstitutionarray(&$substitutionarray, $langs, $object)
 {
+    global $db;
+
     $langs->load('easyurl@easyurl');
 
-    switch ($object->element) {
-        case 'propal' :
-        case 'contrat' :
-        case 'fichinter' :
-            $substitutionarray['__EASY_URL_SIGNATURE_LINK__'] = $object->array_options['options_easy_url_signature_link'];
-            break;
-        case 'commande' :
-        case 'facture' :
-            $substitutionarray['__EASY_URL_PAYMENT_LINK__'] = $object->array_options['options_easy_url_payment_link'];
-            break;
-        default :
-            $substitutionarray['__EASY_URL_SIGNATURE_LINK__'] = $langs->trans('EasyUrlSignatureLink');
-            $substitutionarray['__EASY_URL_PAYMENT_LINK__']   = $langs->trans('EasyUrlPaymentLink');
-            break;
+    require_once __DIR__ . '/../../class/shortener.class.php';
+
+    $shortener = new Shortener($db);
+
+    $shorteners = $shortener->fetchAll('', '', 0,0, ['customsql' => 'fk_element = ' . $object->id . ' AND type > 0']);
+    if (is_array($shorteners) && !empty($shorteners)) {
+        foreach ($shorteners as $shortener) {
+            $substitutionarray['__EASY_URL_' . dol_strtoupper(getDictionaryValue('c_shortener_url_type', 'label', $shortener->type)) . '_LINK__'] = $shortener->short_url;
+        }
     }
 }

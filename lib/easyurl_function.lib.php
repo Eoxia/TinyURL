@@ -24,12 +24,13 @@
 /**
  * Set easy url link
  *
- * @param  CommonObject $object    Object
- * @param  string       $urlType   Url type
- * @param  string       $urlMethod Url method
- * @return int|object   $data      Data error after curl
+ * @param  Shortener         $shortener Shortener
+ * @param  string            $urlType   Url type
+ * @param  CommonObject|null $object    Object
+ * @param  string            $urlMethod Url method
+ * @return int|object        $data      Data error after curl
  */
-function set_easy_url_link(CommonObject $object, string $urlType, string $urlMethod = 'yourls')
+function set_easy_url_link(Shortener $shortener, string $urlType, CommonObject $object = null, string $urlMethod = 'yourls')
 {
     global $conf, $langs, $user;
 
@@ -41,7 +42,7 @@ function set_easy_url_link(CommonObject $object, string $urlType, string $urlMet
         require_once DOL_DOCUMENT_ROOT . '/core/lib/signature.lib.php';
         require_once DOL_DOCUMENT_ROOT . '/core/lib/ticket.lib.php';
 
-        $object->fetch($object->id);
+        $shortener->fetch($shortener->id);
         switch ($object->element) {
             case 'propal' :
                 $type = 'proposal';
@@ -62,20 +63,37 @@ function set_easy_url_link(CommonObject $object, string $urlType, string $urlMet
         switch ($urlType) {
             case 'payment' :
                 $onlineUrl = getOnlinePaymentUrl(0, $type, $object->ref);
+                if ($type == 'proposal') {
+                    $type = 'propal';
+                }
+                $shortener->element_type = $type;
+                $shortener->fk_element   = $object->id;
+                $shortener->status       = $shortener::STATUS_ASSIGN;
                 break;
             case 'signature' :
                 $onlineUrl = getOnlineSignatureUrl(0, $type, $object->ref);
+                if ($type == 'proposal') {
+                    $type = 'propal';
+                }
+                $shortener->element_type = $type;
+                $shortener->fk_element   = $object->id;
+                $shortener->status       = $shortener::STATUS_ASSIGN;
                 break;
             default :
-                if (property_exists($object, 'original_url') && dol_strlen($object->original_url) > 0) {
-                    $onlineUrl = $object->original_url;
+                if (property_exists($shortener, 'original_url') && dol_strlen($shortener->original_url) > 0) {
+                    $onlineUrl = $shortener->original_url;
                 } else {
                     $onlineUrl = getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL');
                 }
                 break;
         }
 
-        $title = dol_sanitizeFileName(dol_strtolower($conf->global->MAIN_INFO_SOCIETE_NOM . '-' . $object->ref) . (getDolGlobalInt('EASYURL_USE_SHA_URL') ? '-' . generate_random_id(8) : ''));
+        $title  = getDolGlobalInt('EASYURL_USE_MAIN_INFO_SOCIETE_NAME') ? dol_strtolower($conf->global->MAIN_INFO_SOCIETE_NOM) : '';
+        $title .= getDolGlobalInt('EASYURL_USE_MAIN_INFO_SOCIETE_NAME') && getDolGlobalInt('EASYURL_USE_SHORTENER_REF') ? '-' : '';
+        $title .= getDolGlobalInt('EASYURL_USE_SHORTENER_REF') ? dol_strtolower($shortener->ref) : '';
+        $title .= (getDolGlobalInt('EASYURL_USE_MAIN_INFO_SOCIETE_NAME') || getDolGlobalInt('EASYURL_USE_SHORTENER_REF')) && getDolGlobalInt('EASYURL_USE_SHA_URL') ? '-' : '';
+        $title .= getDolGlobalInt('EASYURL_USE_SHA_URL') ? generate_random_id(8) : '';
+        $title  = dol_sanitizeFileName($title);
 
         // Init the CURL session
         $ch = curl_init();
@@ -107,29 +125,33 @@ function set_easy_url_link(CommonObject $object, string $urlType, string $urlMet
         $data = json_decode($data);
 
         if ($data->status == 'success') {
-            if ($urlType != 'none') {
-                $object->array_options['options_easy_url_' . $urlType . '_link'] = $data->shorturl;
-                $object->updateExtraField('easy_url_' . $urlType . '_link');
-                setEventMessage($langs->trans('SetEasyURLSuccess'));
-            } else {
-                // Shortener object in 100% of cases
-                $object->status       = $object::STATUS_VALIDATED;
-                $object->label        = $title;
-                $object->short_url    = $data->shorturl;
-                $object->original_url = $onlineUrl;
-                $object->update($user, true);
-
-                require_once TCPDF_PATH . 'tcpdf_barcodes_2d.php';
-
-                $barcode = new TCPDF2DBarcode($object->short_url, 'QRCODE,L');
-
-                dol_mkdir($conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/');
-                $file = $conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/' . 'barcode_' . $object->ref . '.png';
-
-                $imageData = $barcode->getBarcodePngData();
-                $imageData = imagecreatefromstring($imageData);
-                imagepng($imageData, $file);
+            $shortenerUrlTypeDictionaries = saturne_fetch_dictionary('c_shortener_url_type');
+            if (is_array($shortenerUrlTypeDictionaries) && !empty($shortenerUrlTypeDictionaries)) {
+                foreach ($shortenerUrlTypeDictionaries as $shortenerUrlTypeDictionary) {
+                    if ($shortenerUrlTypeDictionary->ref == ucfirst($urlType)) {
+                        $shortener->type = $shortenerUrlTypeDictionary->id;
+                        break;
+                    }
+                }
             }
+            if ($shortener->status == $shortener::STATUS_DRAFT) {
+                $shortener->status = $shortener::STATUS_VALIDATED;
+            }
+            $shortener->label        = $title;
+            $shortener->short_url    = $data->shorturl;
+            $shortener->original_url = $onlineUrl;
+            $shortener->update($user, true);
+
+            require_once TCPDF_PATH . 'tcpdf_barcodes_2d.php';
+
+            $barcode = new TCPDF2DBarcode($shortener->short_url, 'QRCODE,L');
+
+            dol_mkdir($conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $shortener->ref . '/qrcode/');
+            $file = $conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $shortener->ref . '/qrcode/' . 'barcode_' . $shortener->ref . '.png';
+
+            $imageData = $barcode->getBarcodePngData();
+            $imageData = imagecreatefromstring($imageData);
+            imagepng($imageData, $file);
             return 1;
         } else {
             setEventMessage($langs->trans('SetEasyURLErrors'), 'errors');
@@ -141,19 +163,17 @@ function set_easy_url_link(CommonObject $object, string $urlType, string $urlMet
 /**
  * get easy url link
  *
- * @param  CommonObject $object  Object
- * @param  string       $urlType Url type
- * @return int                   0 < on error, 1 = statusCode 200, 0 = other statusCode (ex : 404)
+ * @param  string     $shortUrl  Short url
+ * @param  string     $urlType   Url type
+ * @return int|object $data      0 < on error, data
  */
-function get_easy_url_link(CommonObject $object, string $urlType): int
+function get_easy_url_link(string $shortUrl, string $urlType)
 {
     global $conf;
 
     $useOnlinePayment = (isModEnabled('paypal') || isModEnabled('stripe') || isModEnabled('paybox'));
     $checkConf        = getDolGlobalString('EASYURL_URL_YOURLS_API') && getDolGlobalString('EASYURL_SIGNATURE_TOKEN_YOURLS_API');
     if ((($urlType == 'payment' && $useOnlinePayment) || $urlType == 'signature') && $checkConf) {
-        $object->fetch($object->id);
-
         // Init the CURL session
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $conf->global->EASYURL_URL_YOURLS_API);
@@ -165,7 +185,7 @@ function get_easy_url_link(CommonObject $object, string $urlType): int
             'action'    => 'url-stats',
             'signature' => $conf->global->EASYURL_SIGNATURE_TOKEN_YOURLS_API,
             'format'    => 'json',
-            'shorturl'  => $object->array_options['options_easy_url_' . $urlType . '_link']
+            'shorturl'  => $shortUrl
         ]);
 
         // Fetch and return content
@@ -174,7 +194,11 @@ function get_easy_url_link(CommonObject $object, string $urlType): int
 
         // Do something with the result
         $data = json_decode($data);
-        return $data->statusCode == 200 ? 1 : 0;
+        if ($data->statusCode == 200) {
+            return $data->link;
+        } else {
+            return -1;
+        }
     } else {
         return -1;
     }

@@ -73,36 +73,7 @@ class ActionsEasyurl
      */
     public function printCommonFooter(array $parameters): int
     {
-        global $object, $langs;
-
-        if (in_array($parameters['currentcontext'], ['propalcard', 'ordercard', 'invoicecard', 'contractcard', 'interventioncard'])) {
-            if ($object->status > $object::STATUS_DRAFT) {
-                $cssPath = dol_buildpath('/saturne/css/saturne.min.css', 1);
-                print '<link href="' . $cssPath . '" rel="stylesheet">';
-
-                $pictoPath = dol_buildpath('/easyurl/img/easyurl_color.png', 1);
-                $picto     = img_picto('', $pictoPath, '', 1, 0, 0, '', 'pictoModule');
-                $urlTypes  = ['payment', 'signature'];
-                foreach ($urlTypes as $urlType) {
-                    $checkEasyUrlLink = get_easy_url_link($object, $urlType);
-                    $jQueryElement    = '.' . $object->element . '_extras_easy_url_' . $urlType . '_link';
-                    if ($checkEasyUrlLink == 0 && getDolGlobalInt('EASYURL_MANUAL_GENERATION')) {
-                        $output  = $picto;
-                        $output .= '<a class="reposition editfielda" href="' . $_SERVER['PHP_SELF'] . '?id=' . $object->id . '&action=set_easy_url&url_type=' . $urlType . '&token=' . newToken() . '">';
-                        $output .= img_picto($langs->trans('SetEasyURLLink'), 'fontawesome_fa-redo_fas_#444', 'class="paddingright pictofixedwidth valignmiddle"') . '</a>';
-                        $output .= '</span>' . img_picto($langs->trans('GetEasyURLErrors'), 'fontawesome_fa-exclamation-triangle_fas_#bc9526') . '</span>';
-                    }
-                    if (!empty($object->array_options['options_easy_url_' . $urlType . '_link']) && $checkEasyUrlLink > 0) {
-                        $output = showValueWithClipboardCPButton($object->array_options['options_easy_url_' . $urlType . '_link'], 0, 'none');
-                    } ?>
-                    <script>
-                        var objectElement = <?php echo "'" . $jQueryElement . "'"; ?>;
-                        jQuery(objectElement).prepend(<?php echo json_encode($output); ?>);
-                    </script>
-                    <?php
-                }
-            }
-        }
+        global $object;
 
         require_once __DIR__ . '/../../saturne/lib/object.lib.php';
 
@@ -130,26 +101,6 @@ class ActionsEasyurl
             }
         }
 
-        if (in_array($parameters['currentcontext'], ['propallist', 'orderlist', 'invoicelist'])) {
-            $cssPath = dol_buildpath('/saturne/css/saturne.min.css', 1);
-            print '<link href="' . $cssPath . '" rel="stylesheet">';
-
-            $pictoPath = dol_buildpath('/easyurl/img/easyurl_color.png', 1);
-            $picto     = img_picto('', $pictoPath, '', 1, 0, 0, '', 'pictoModule');
-            $urlTypes  = ['payment', 'signature'];
-            foreach ($urlTypes as $urlType) {
-                $jQueryElement = 'easy_url_' . $urlType . '_link'; ?>
-
-                <script>
-                    var objectElement = <?php echo "'" . $jQueryElement . "'"; ?>;
-                    var outJS         = <?php echo json_encode($picto); ?>;
-                    var cell          = $('.liste > tbody > tr.liste_titre').find('th[data-titlekey="' + objectElement + '"]');
-                    cell.prepend(outJS);
-                </script>
-                <?php
-            }
-        }
-
         return 0; // or return 1 to replace standard code
     }
 
@@ -164,15 +115,6 @@ class ActionsEasyurl
     public function doActions(array $parameters, $object, string $action): int
     {
         global $conf, $user;
-
-        if (in_array($parameters['currentcontext'], ['propalcard', 'ordercard', 'invoicecard', 'contractcard', 'interventioncard'])) {
-            if ($action == 'set_easy_url') {
-                set_easy_url_link($object, GETPOST('url_type'));
-
-                header('Location: ' . $_SERVER['PHP_SELF'] . '?id=' . $object->id);
-                exit;
-            }
-        }
 
         require_once __DIR__ . '/../../saturne/lib/object.lib.php';
 

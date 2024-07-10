@@ -118,13 +118,29 @@ class InterfaceEasyURLTriggers extends DolibarrTriggers
             case 'CONTRACT_VALIDATE':
             case 'FICHINTER_VALIDATE':
                 if (getDolGlobalInt('EASYURL_AUTOMATIC_GENERATION')) {
-                    set_easy_url_link($object, 'signature');
+                    require_once __DIR__ . '/../../class/shortener.class.php';
+
+                    $shortener = new Shortener($this->db);
+
+                    $shortener->ref     = $shortener->getNextNumRef();
+                    $shortener->methode = 'yourls';
+
+                    $shortener->create($user);
+                    set_easy_url_link($shortener, 'signature', $object);
                 }
                 break;
             case 'ORDER_VALIDATE':
             case 'BILL_VALIDATE':
                 if (getDolGlobalInt('EASYURL_AUTOMATIC_GENERATION')) {
-                    set_easy_url_link($object, 'payment');
+                    require_once __DIR__ . '/../../class/shortener.class.php';
+
+                    $shortener = new Shortener($this->db);
+
+                    $shortener->ref     = $shortener->getNextNumRef();
+                    $shortener->methode = 'yourls';
+
+                    $shortener->create($user);
+                    set_easy_url_link($shortener, 'payment', $object);
                 }
                 break;
 
@@ -137,13 +153,6 @@ class InterfaceEasyURLTriggers extends DolibarrTriggers
             // MODIFY
             case 'SHORTENER_MODIFY' :
                 if (!empty($object->element_type)) {
-                    $objectsMetadata = saturne_get_objects_metadata($object->element_type);
-                    $className       = $objectsMetadata['class_name'];
-                    $objectLinked    = new $className($this->db);
-                    $objectLinked->fetch($object->fk_element);
-                    $objectLinked->array_options['options_easy_url_all_link'] = $object->short_url;
-                    $objectLinked->updateExtraField('easy_url_all_link');
-
                     $object->status = Shortener::STATUS_ASSIGN;
                     $object->setValueFrom('status', $object->status, '', null, 'int');
                 } else {

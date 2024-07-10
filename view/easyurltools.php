@@ -75,7 +75,7 @@ if ($action == 'generate_url' && $permissionToAdd) {
             $shortener->create($user);
 
             // UrlType : none because we want mass generation url (all can be use but need to change this code)
-            $result = set_easy_url_link($shortener, 'none', $urlMethode);
+            $result = set_easy_url_link($shortener, 'none', null, $urlMethode);
             if (!empty($result) && is_object($result)) {
                 setEventMessage($result->message, 'errors');
                 $error++;

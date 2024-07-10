@@ -417,9 +417,6 @@ class Shortener extends SaturneObject
         global $conf, $form, $langs, $user;
 
         switch ($object->element) {
-            case 'propal' :
-                $element_type = 'proposal';
-                break;
             case 'commande' :
                 $element_type = 'order';
                 break;
