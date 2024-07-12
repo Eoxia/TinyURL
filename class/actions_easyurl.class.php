@@ -148,4 +148,22 @@ class ActionsEasyurl
 
         return 0; // or return 1 to replace standard code
     }
+
+    /**
+     *  Overloading the beforeLoginAuthentication function : replacing the parent's function with the one below
+     *
+     * @param  array        $parameters Hook metadatas (context, etc...)
+     * @param  CommonObject $object     Current object
+     * @param  string       $action     Current action
+     * @return int                      0 < on error, 0 on success, 1 to replace standard code
+     */
+    public function beforeLoginAuthentication(array $parameters, $object, string $action) {
+
+//			if ($_SERVER['REQUEST_URI']=='/register') {
+//				header("Location: https://demodoli.digirisk.com/htdocs/custom/digiriskdolibarr/public/ticket/create_ticket.php?idmenu=3912&mainmenu=digiriskdolibarr&leftmenu=");
+//				exit;
+//			}
+
+        return 0; // or return 1 to replace standard code
+	}
 }
