@@ -38,6 +38,11 @@ function easyurl_admin_prepare_head(): array
     $h    = 0;
     $head = [];
 
+    $head[$h][0] = dol_buildpath('/saturne/admin/object.php', 1) . '?module_name=EasyURL&object_type=shortener';
+    $head[$h][1] = $conf->browser->layout != 'phone' ? '<i class="fas fa-link pictofixedwidth"></i>' . $langs->trans('Shortener') : '<i class="fas fa-link"></i>';
+    $head[$h][2] = 'shortener';
+    $h++;
+
     $head[$h][0] = dol_buildpath('/easyurl/admin/setup.php', 1);
     $head[$h][1] = $conf->browser->layout != 'phone' ? '<i class="fas fa-cog pictofixedwidth"></i>' . $langs->trans('ModuleSettings') : '<i class="fas fa-cog"></i>';
     $head[$h][2] = 'settings';

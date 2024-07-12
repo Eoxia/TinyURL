@@ -92,8 +92,26 @@ class InterfaceEasyURLTriggers extends DolibarrTriggers
             return 0; // If module is not enabled, we do nothing
         }
 
-        // Data and type of action are stored into $object and $action
+        saturne_load_langs();
+
+        // Data and type of action are stored into $object and $action.
         dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . '. id=' . $object->id);
+
+        require_once DOL_DOCUMENT_ROOT . '/comm/action/class/actioncomm.class.php';
+        $now        = dol_now();
+        $actioncomm = new ActionComm($this->db);
+
+        $actioncomm->elementtype = $object->element . '@easyurl';
+        $actioncomm->type_code   = 'AC_OTH_AUTO';
+        $actioncomm->code        = 'AC_' . $action;
+        $actioncomm->datep       = $now;
+        $actioncomm->fk_element  = $object->id;
+        $actioncomm->userownerid = $user->id;
+        $actioncomm->percentage  = -1;
+
+        if (getDolGlobalInt('EASYURL_ADVANCED_TRIGGER') && !empty($object->fields)) {
+            $actioncomm->note_private = method_exists($object, 'getTriggerDescription') ? $object->getTriggerDescription($object) : '';
+        }
 
         switch ($action) {
             case 'PROPAL_VALIDATE':
@@ -108,6 +126,50 @@ class InterfaceEasyURLTriggers extends DolibarrTriggers
                 if (getDolGlobalInt('EASYURL_AUTOMATIC_GENERATION')) {
                     set_easy_url_link($object, 'payment');
                 }
+                break;
+
+            // CREATE
+            case 'SHORTENER_CREATE' :
+                $actioncomm->label = $langs->trans('ObjectCreateTrigger', $langs->transnoentities(ucfirst($object->element)), $object->ref);
+                $actioncomm->create($user);
+                break;
+
+            // MODIFY
+            case 'SHORTENER_MODIFY' :
+                if (!empty($object->element_type)) {
+                    $objectsMetadata = saturne_get_objects_metadata($object->element_type);
+                    $className       = $objectsMetadata['class_name'];
+                    $objectLinked    = new $className($this->db);
+                    $objectLinked->fetch($object->fk_element);
+                    $objectLinked->array_options['options_easy_url_all_link'] = $object->short_url;
+                    $objectLinked->updateExtraField('easy_url_all_link');
+
+                    $object->status = Shortener::STATUS_ASSIGN;
+                    $object->setValueFrom('status', $object->status, '', null, 'int');
+                } else {
+                    // Special case/Protection case
+                    if ($object->element_type == 0) {
+                        $object->element_type = '';
+                        $object->fk_element   = '';
+                    }
+                    if ($object->fk_element == -1) {
+                        $object->fk_element = '';
+                    }
+                    $object->update($user, true);
+                }
+
+                if ($object->original_url != GETPOST('previous_original_url')) {
+                    update_easy_url_link($object);
+                }
+
+                $actioncomm->label = $langs->trans('ObjectModifyTrigger', $langs->transnoentities(ucfirst($object->element)), $object->ref);
+                $actioncomm->create($user);
+                break;
+
+            // DELETE
+            case 'SHORTENER_DELETE' :
+                $actioncomm->label = $langs->trans('ObjectDeleteTrigger', $langs->transnoentities(ucfirst($object->element)), $object->ref);
+                $actioncomm->create($user);
                 break;
         }
         return 0;

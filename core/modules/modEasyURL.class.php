@@ -118,10 +118,6 @@ class modEasyURL extends DolibarrModules
             'js' => [],
             // Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
             'hooks' => [
-                'propalcard',
-                'ordercard',
-                'invoicecard',
-                'contractcard',
                 'interventioncard',
                 'propallist',
                 'orderlist',
@@ -131,6 +127,15 @@ class modEasyURL extends DolibarrModules
             // Set this to 1 if features of module are opened to external users
             'moduleforexternal' => 0
         ];
+
+        if (function_exists('saturne_get_objects_metadata')) {
+            $objectsMetadata = saturne_get_objects_metadata();
+            if (!empty($objectsMetadata)) {
+                foreach ($objectsMetadata as $objectMetadata) {
+                    $this->module_parts['hooks'][] = $objectMetadata['hook_name_card'];
+                }
+            }
+        }
 
         // Data directories to create when module is enabled
         // Example: this->dirs = array("/easyurl/temp","/easyurl/subdir");
@@ -144,7 +149,7 @@ class modEasyURL extends DolibarrModules
         $this->hidden = false;
 
         // List of module class names as string that must be enabled if this module is enabled. Example: array('always1'=>'modModuleToEnable1','always2'=>'modModuleToEnable2', 'FR1'=>'modModuleToEnableFR'...)
-        $this->depends      = ['modSaturne'];
+        $this->depends      = ['modAgenda', 'modSaturne'];
         $this->requiredby   = []; // List of module class names as string to disable if this one is disabled. Example: array('modModuleToDisable1', ...)
         $this->conflictwith = []; // List of module class names as string this module is in conflict with. Example: array('modModuleToDisable1', ...)
 
@@ -176,6 +181,10 @@ class modEasyURL extends DolibarrModules
             $i++ => ['EASYURL_VERSION', 'chaine', $this->version, '', 0, 'current'],
             $i++ => ['EASYURL_DB_VERSION', 'chaine', $this->version, '', 0, 'current'],
             $i++ => ['EASYURL_SHOW_PATCH_NOTE', 'integer', 1, '', 0, 'current'],
+            $i++ => ['EASYURL_ADVANCED_TRIGGER', 'integer', 1, '', 0, 'current'],
+
+            // CONST SHORTENER
+            $i++ => ['EASYURL_SHORTENER_ADDON', 'chaine', 'mod_shortener_standard', '', 0, 'current'],
 
             // CONST DOLIBARR
             $i++ => ['CONTRACT_ALLOW_ONLINESIGN', 'integer', 1, '', 0, 'current'],
@@ -196,8 +205,46 @@ class modEasyURL extends DolibarrModules
         // Array to add new pages in new tabs
         $this->tabs = [];
 
-        // Dictionaries.
-        $this->dictionaries = [];
+        // Dictionaries
+        $this->dictionaries = [
+            'langs' => 'easyurl@easyurl',
+            // List of tables we want to see into dictionary editor
+            'tabname' => [
+                MAIN_DB_PREFIX . 'c_shortener_url_type'
+            ],
+            // Label of tables
+            'tablib' => [
+                'ShortenerUrlType'
+            ],
+            // Request to select fields
+            'tabsql' => [
+                'SELECT f.rowid as rowid, f.ref, f.label, f.description, f.position, f.active  FROM ' . MAIN_DB_PREFIX . 'c_shortener_url_type as f'
+            ],
+            // Sort order
+            'tabsqlsort' => [
+                'position ASC'
+            ],
+            // List of fields (result of select to show dictionary)
+            'tabfield' => [
+                'ref,label,description,position'
+            ],
+            // List of fields (list of fields to edit a record)
+            'tabfieldvalue' => [
+                'ref,label,description,position'
+            ],
+            // List of fields (list of fields for insert)
+            'tabfieldinsert' => [
+                'ref,label,description,position'
+            ],
+            // Name of columns with primary key (try to always name it 'rowid')
+            'tabrowid' => [
+                'rowid'
+            ],
+            // Condition to show each dictionary
+            'tabcond' => [
+                $conf->easyurl->enabled
+            ]
+        ];
 
         // Boxes/Widgets
         // Add here list of php file(s) stored in easyurl/core/boxes that contains a class to show a widget
@@ -223,6 +270,23 @@ class modEasyURL extends DolibarrModules
         $this->rights[$r][5] = 1;
         $r++;
 
+        /* SHORTENER PERMISSIONS */
+        $this->rights[$r][0] = $this->numero . sprintf('%02d', $r + 1);
+        $this->rights[$r][1] = $langs->transnoentities('ReadObjects', $langs->transnoentities('Shorteners'));
+        $this->rights[$r][4] = 'shortener';
+        $this->rights[$r][5] = 'read';
+        $r++;
+        $this->rights[$r][0] = $this->numero . sprintf('%02d', $r + 1);
+        $this->rights[$r][1] = $langs->transnoentities('CreateObjects', $langs->transnoentities('Shorteners'));
+        $this->rights[$r][4] = 'shortener';
+        $this->rights[$r][5] = 'write';
+        $r++;
+        $this->rights[$r][0] = $this->numero . sprintf('%02d', $r + 1);
+        $this->rights[$r][1] = $langs->transnoentities('DeleteObjects', $langs->transnoentities('Shorteners'));
+        $this->rights[$r][4] = 'shortener';
+        $this->rights[$r][5] = 'delete';
+        $r++;
+
         /* ADMINPAGE PANEL ACCESS PERMISSIONS */
         $this->rights[$r][0] = $this->numero . sprintf('%02d', $r + 1);
         $this->rights[$r][1] = $langs->transnoentities('ReadAdminPage', 'EasyURL');
@@ -231,6 +295,83 @@ class modEasyURL extends DolibarrModules
 
         // Main menu entries to add
         $this->menu = [];
+        $r = 0;
+
+        // Add here entries to declare new menus
+        // EASYURL MENU
+        $this->menu[$r++] = [
+            'fk_menu'  => 'fk_mainmenu=easyurl',
+            'type'     => 'top',
+            'titre'    => $langs->trans('EasyURL'),
+            'prefix'   => '<i class="fas fa-home pictofixedwidth"></i>',
+            'mainmenu' => 'easyurl',
+            'leftmenu' => '',
+            'url'      => '/easyurl/easyurlindex.php',
+            'langs'    => 'easyurl@easyurl',
+            'position' => 1000 + $r,
+            'enabled'  => '$conf->easyurl->enabled && $user->rights->easyurl->read',
+            'perms'    => '$user->rights->easyurl->read',
+            'target'   => '',
+            'user'     => 0,
+        ];
+
+        $this->menu[$r++] = [
+            'fk_menu'  => 'fk_mainmenu=easyurl',
+            'type'     => 'left',
+            'titre'    => $langs->transnoentities('Shortener'),
+            'prefix'   => '<i class="fas fa-link pictofixedwidth"></i>',
+            'mainmenu' => 'easyurl',
+            'leftmenu' => 'shortener',
+            'url'      => '/easyurl/view/shortener/shortener_list.php',
+            'langs'    => 'easyurl@easyurl',
+            'position' => 1000 + $r,
+            'enabled'  => '$conf->easyurl->enabled',
+            'perms'    => '$user->rights->easyurl->shortener->read',
+            'target'   => '',
+            'user'     => 0,
+        ];
+
+        $this->menu[$r++] = [
+            'fk_menu'  => 'fk_mainmenu=easyurl',
+            'type'     => 'left',
+            'titre'    => $langs->trans('Tools'),
+            'prefix'   => '<i class="fas fa-wrench pictofixedwidth"></i>',
+            'mainmenu' => 'easyurl',
+            'leftmenu' => 'easyurltools',
+            'url'      => '/easyurl/view/easyurltools.php',
+            'langs'    => 'easyurl@easyurl',
+            'position' => 1000 + $r,
+            'enabled'  => '$conf->easyurl->enabled',
+            'perms'    => '$user->rights->easyurl->read && $user->rights->easyurl->adminpage->read',
+            'target'   => '',
+            'user'     => 0,
+        ];
+
+        // Exports profiles provided by this module
+        $r = 1;
+
+        $this->export_code[$r]       = $this->rights_class . '_' . $r;
+        $this->export_label[$r]      = 'Shortener'; // Translation key (used only if key ExportDataset_xxx_z not found)
+        $this->export_icon[$r]       = 'fontawesome_fa-link_fas_#63ACC9';
+        $this->export_enabled[$r]    = '!empty($conf->easyurl->enabled)';
+        $this->export_permission[$r] = [["easyurl", "shortener"]];
+
+        $this->export_fields_array[$r]     = [];
+        $this->export_TypeFields_array[$r] = [];
+        $this->export_entities_array[$r]   = [];
+
+        $keyforclass     = 'Shortener';
+        $keyforclassfile = '/easyurl/class/shortener.class.php';
+        $keyforelement   = 'shortener';
+        $keyforalias     = 't';
+
+        require DOL_DOCUMENT_ROOT . '/core/commonfieldsinexport.inc.php';
+
+        $this->export_sql_start[$r] = 'SELECT DISTINCT ';
+
+        $this->export_sql_end[$r]  = ' FROM ' . MAIN_DB_PREFIX . 'easyurl_shortener as t';
+        $this->export_sql_end[$r] .= ' WHERE 1 = 1';
+        $this->export_sql_end[$r] .= ' AND t.entity IN (' . getEntity('shortener') . ')';
     }
 
     /**
@@ -250,6 +391,11 @@ class modEasyURL extends DolibarrModules
         $this->remove($options);
 
         $sql = [];
+
+        $result = $this->_load_tables('/easyurl/sql/');
+        if ($result < 0) {
+            return -1; // Do not activate module if error 'not allowed' returned when loading module SQL queries (the _load_table run sql with run_sql with the error allowed parameter set to 'default')
+        }
 
         dolibarr_set_const($this->db, 'EASYURL_VERSION', $this->version, 'chaine', 0, '', $conf->entity);
         dolibarr_set_const($this->db, 'EASYURL_DB_VERSION', $this->version, 'chaine', 0, '', $conf->entity);
@@ -277,6 +423,13 @@ class modEasyURL extends DolibarrModules
         // Fiche inter extrafields
         $extraFields->update('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', '', 'fichinter', 0, 0, 2000, '', '', '', 5, 'EasyUrlLinkHelp', '', '', 0, 'easyurl@easyurl');
         $extraFields->addExtraField('easy_url_signature_link', 'EasyUrlSignatureLink', 'url', 2000, '', 'fichinter', 0, 0, '', '', '', '', 5, 'EasyUrlLinkHelp', '', 0, 'easyurl@easyurl');
+
+        // All element type extrafields
+        $objectsMetadata = saturne_get_objects_metadata();
+        foreach($objectsMetadata as $objectMetadata) {
+            $extraFields->update('easy_url_all_link', 'EasyUrlAllLink', 'url', '', $objectMetadata['table_element'], 0, 0, 2100, '', '', '', 5, 'EasyUrlAllLinkHelp', '', '', 0, 'easyurl@easyurl');
+            $extraFields->addExtraField('easy_url_all_link', 'EasyUrlAllLink', 'url', 2100, '', $objectMetadata['table_element'], 0, 0, '', '', '', '', 5, 'EasyUrlAllLinkHelp', '', 0, 'easyurl@easyurl');
+        }
 
         return $this->_init($sql, $options);
     }

@@ -50,9 +50,9 @@ class ActionsEasyurl
     public array $results = [];
 
     /**
-     * @var string String displayed by executeHook() immediately after return
+     * @var string|null String displayed by executeHook() immediately after return
      */
-    public string $resprints;
+    public ?string $resprints;
 
     /**
      * Constructor
@@ -104,6 +104,32 @@ class ActionsEasyurl
             }
         }
 
+        require_once __DIR__ . '/../../saturne/lib/object.lib.php';
+
+        $objectsMetadata = saturne_get_objects_metadata();
+        if (!empty($objectsMetadata)) {
+            foreach ($objectsMetadata as $objectMetadata) {
+                if ($objectMetadata['link_name'] == $object->element || $objectMetadata['tab_type'] == $object->element) {
+                    if ($parameters['currentcontext'] == $objectMetadata['hook_name_card']) {
+
+                        $jsPath = dol_buildpath('/saturne/js/saturne.min.js', 1);
+                        print '<script src="' . $jsPath . '" ></script>';
+                        $jsPath = dol_buildpath('/easyurl/js/easyurl.min.js', 1);
+                        print '<script src="' . $jsPath . '" ></script>';
+
+                        require_once __DIR__ . '/shortener.class.php';
+
+                        $shortener = new Shortener($this->db);
+                        $output = $shortener->displayObjectDetails($object); ?>
+                        <script>
+                            jQuery('.fichehalfright').first().append(<?php echo json_encode($output); ?>);
+                        </script>
+                        <?php
+                    }
+                }
+            }
+        }
+
         if (in_array($parameters['currentcontext'], ['propallist', 'orderlist', 'invoicelist'])) {
             $cssPath = dol_buildpath('/saturne/css/saturne.min.css', 1);
             print '<link href="' . $cssPath . '" rel="stylesheet">';
@@ -137,12 +163,35 @@ class ActionsEasyurl
      */
     public function doActions(array $parameters, $object, string $action): int
     {
+        global $conf, $user;
+
         if (in_array($parameters['currentcontext'], ['propalcard', 'ordercard', 'invoicecard', 'contractcard', 'interventioncard'])) {
             if ($action == 'set_easy_url') {
                 set_easy_url_link($object, GETPOST('url_type'));
 
                 header('Location: ' . $_SERVER['PHP_SELF'] . '?id=' . $object->id);
                 exit;
+            }
+        }
+
+        require_once __DIR__ . '/../../saturne/lib/object.lib.php';
+
+        $objectsMetadata = saturne_get_objects_metadata();
+        if (!empty($objectsMetadata)) {
+            foreach ($objectsMetadata as $objectMetadata) {
+                if ($objectMetadata['link_name'] == $object->element || $objectMetadata['tab_type'] == $object->element) {
+                    if ($parameters['currentcontext'] == $objectMetadata['hook_name_card']) {
+                        if ($action == 'show_qrcode') {
+                            $data = json_decode(file_get_contents('php://input'), true);
+
+                            $showQRCode = $data['showQRCode'];
+
+                            $tabParam['EASYURL_SHOW_QRCODE'] = $showQRCode;
+
+                            dol_set_user_param($this->db, $conf, $user, $tabParam);
+                        }
+                    }
+                }
             }
         }
 
