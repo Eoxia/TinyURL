@@ -31,15 +31,20 @@
  */
 function set_easy_url_link(CommonObject $object, string $urlType, string $urlMethod = 'yourls')
 {
-    global $conf, $langs, $user;
+    global $conf, $db, $langs, $user;
 
     $useOnlinePayment = (isModEnabled('paypal') || isModEnabled('stripe') || isModEnabled('paybox'));
     $checkConf        = getDolGlobalString('EASYURL_URL_' . dol_strtoupper($urlMethod) . '_API') && getDolGlobalString('EASYURL_SIGNATURE_TOKEN_' . dol_strtoupper($urlMethod) . '_API');
+    if ($urlMethod == 'dolibarr') {
+        $checkConf = true;
+    }
     if ((($urlType == 'payment' && $useOnlinePayment) || $urlType == 'signature' || $urlType == 'none') && $checkConf) {
         // Load Dolibarr libraries
         require_once DOL_DOCUMENT_ROOT . '/core/lib/payments.lib.php';
         require_once DOL_DOCUMENT_ROOT . '/core/lib/signature.lib.php';
         require_once DOL_DOCUMENT_ROOT . '/core/lib/ticket.lib.php';
+
+        require_once __DIR__ . '/../../saturne/class/saturneredirection.class.php';
 
         $object->fetch($object->id);
         switch ($object->element) {
@@ -74,67 +79,74 @@ function set_easy_url_link(CommonObject $object, string $urlType, string $urlMet
                 }
                 break;
         }
-
         $title = dol_sanitizeFileName(dol_strtolower($conf->global->MAIN_INFO_SOCIETE_NOM . '-' . $object->ref) . (getDolGlobalInt('EASYURL_USE_SHA_URL') ? '-' . generate_random_id(8) : ''));
 
-        // Init the CURL session
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, getDolGlobalString('EASYURL_URL_' . dol_strtoupper($urlMethod) . '_API'));
-        curl_setopt($ch, CURLOPT_HEADER, 0);            // No header in the result
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return, do not echo result
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_POST, 1);              // This is a POST request
-        switch ($urlMethod) {
-            case 'yourls' :
-                curl_setopt($ch, CURLOPT_POSTFIELDS, [               // Data to POST
-                    'action'    => 'shorturl',
-                    'signature' => getDolGlobalString('EASYURL_SIGNATURE_TOKEN_YOURLS_API'),
-                    'format'    => 'json',
-                    'title'     => $title,
-                    'keyword'   => $title,
-                    'url'       => $onlineUrl
-                ]);
-                break;
-            case 'wordpress' :
-                break;
-        }
-
-        // Fetch and return content
-        $data = curl_exec($ch);
-        curl_close($ch);
-
-        // Do something with the result
-        $data = json_decode($data);
-
-        if ($data->status == 'success') {
-            if ($urlType != 'none') {
-                $object->array_options['options_easy_url_' . $urlType . '_link'] = $data->shorturl;
-                $object->updateExtraField('easy_url_' . $urlType . '_link');
-                setEventMessage($langs->trans('SetEasyURLSuccess'));
-            } else {
-                // Shortener object in 100% of cases
-                $object->status       = $object::STATUS_VALIDATED;
-                $object->label        = $title;
-                $object->short_url    = $data->shorturl;
-                $object->original_url = $onlineUrl;
-                $object->update($user, true);
-
-                require_once TCPDF_PATH . 'tcpdf_barcodes_2d.php';
-
-                $barcode = new TCPDF2DBarcode($object->short_url, 'QRCODE,L');
-
-                dol_mkdir($conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/');
-                $file = $conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/' . 'barcode_' . $object->ref . '.png';
-
-                $imageData = $barcode->getBarcodePngData();
-                $imageData = imagecreatefromstring($imageData);
-                imagepng($imageData, $file);
-            }
-            return 1;
+        if ($urlMethod == 'dolibarr') {
+            $saturneRedirection = new SaturneRedirection($db);
+            $saturneRedirection->from_url = '/' . $title;
+            $saturneRedirection->to_url = $onlineUrl;
+            $saturneRedirection->create($user);
         } else {
-            setEventMessage($langs->trans('SetEasyURLErrors'), 'errors');
-            return $data;
+            // Init the CURL session
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, getDolGlobalString('EASYURL_URL_' . dol_strtoupper($urlMethod) . '_API'));
+            curl_setopt($ch, CURLOPT_HEADER, 0);            // No header in the result
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return, do not echo result
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);              // This is a POST request
+            switch ($urlMethod) {
+                case 'yourls' :
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, [               // Data to POST
+                        'action'    => 'shorturl',
+                        'signature' => getDolGlobalString('EASYURL_SIGNATURE_TOKEN_YOURLS_API'),
+                        'format'    => 'json',
+                        'title'     => $title,
+                        'keyword'   => $title,
+                        'url'       => $onlineUrl
+                    ]);
+                    break;
+                case 'wordpress' :
+                    break;
+            }
+
+            // Fetch and return content
+            $data = curl_exec($ch);
+            curl_close($ch);
+
+            // Do something with the result
+            $data = json_decode($data);
+
+            if ($data->status == 'success') {
+                if ($urlType != 'none') {
+                    $object->array_options['options_easy_url_' . $urlType . '_link'] = $data->shorturl;
+                    $object->updateExtraField('easy_url_' . $urlType . '_link');
+                    setEventMessage($langs->trans('SetEasyURLSuccess'));
+                } else {
+                    // Shortener object in 100% of cases
+                    $object->status       = $object::STATUS_VALIDATED;
+                    $object->label        = $title;
+                    $object->short_url    = $data->shorturl;
+                    $object->original_url = $onlineUrl;
+                    $object->update($user, true);
+
+                    require_once TCPDF_PATH . 'tcpdf_barcodes_2d.php';
+
+                    $barcode = new TCPDF2DBarcode($object->short_url, 'QRCODE,L');
+
+                    dol_mkdir($conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/');
+                    $file = $conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $object->ref . '/qrcode/' . 'barcode_' . $object->ref . '.png';
+
+                    $imageData = $barcode->getBarcodePngData();
+                    $imageData = imagecreatefromstring($imageData);
+                    imagepng($imageData, $file);
+                }
+                return 1;
+            } else {
+                setEventMessage($langs->trans('SetEasyURLErrors'), 'errors');
+                return $data;
+            }
         }
+
     }
 }
 

@@ -125,7 +125,7 @@ print '<td>' . $langs->trans('Description') . '</td>';
 print '<td>' . $langs->trans('Value') . '</td>';
 print '</tr>';
 
-$urlMethode = ['yourls' => 'YOURLS', 'wordpress' => 'WordPress'];
+$urlMethode = ['yourls' => 'YOURLS', 'wordpress' => 'WordPress', 'dolibarr' => 'Dolibarr'];
 print '<tr class="oddeven"><td>';
 print $langs->trans('UrlMethode');
 print '</td><td>';
