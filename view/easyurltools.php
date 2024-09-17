@@ -32,6 +32,7 @@ if (file_exists('../easyurl.main.inc.php')) {
 
 // Load EasyURL libraries
 require_once __DIR__ . '/../class/shortener.class.php';
+require_once __DIR__ . '/../class/urlexport.class.php';
 require_once __DIR__ . '/../lib/easyurl_function.lib.php';
 
 // Global variables definitions
@@ -56,39 +57,95 @@ saturne_check_access($permissionToRead);
  */
 
 if ($action == 'generate_url' && $permissionToAdd) {
+
+    header('Content-type: application/json');
+
     $error         = 0;
     $urlMethode    = GETPOST('url_methode');
     $NbUrl         = GETPOST('nb_url');
     $originalUrl   = GETPOST('original_url');
     $urlParameters = GETPOST('url_parameters');
-    if ((dol_strlen($originalUrl) > 0 || dol_strlen(getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL')) > 0) && $NbUrl > 0)  {
-        for ($i = 1; $i <= $NbUrl; $i++) {
-            $shortener = new Shortener($db);
-            $shortener->ref = $shortener->getNextNumRef();
-            if (dol_strlen($originalUrl) > 0) {
-                $shortener->original_url = $originalUrl . $urlParameters;
-            } else {
-                $shortener->original_url = getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL') . $urlParameters;
-            }
-            $shortener->methode = $urlMethode;
+    $exportUrlId   = GETPOST('export_url_id');
+    $exportFile    = GETPOST('export_file');
 
-            $shortener->create($user);
+    if ($exportUrlId == '') {
+        $exportUrl = new UrlExport($db);
+        $exportUrl->original_url = $originalUrl . $urlParameters;
 
-            // UrlType : none because we want mass generation url (all can be use but need to change this code)
-            $result = set_easy_url_link($shortener, 'none', $urlMethode);
-            if (!empty($result) && is_object($result)) {
-                setEventMessage($result->message, 'errors');
-                $error++;
-            }
-        }
-        if ($error == 0) {
-            setEventMessage($langs->trans('GenerateUrlSuccess', $i - 1));
+        if ($exportUrl->create($user) == -1) {
+            http_response_code(500);
+            print json_encode(['message' => 'Error during exporting url parameters']);
+            exit;
+        } else {
+            http_response_code(201);
+            print json_encode(['message' => 'Ok', 'data' => $exportUrl->id, 'date' => dol_print_date($exportUrl->date_creation, 'dayhour'), 'ref' => $exportUrl->ref]);
+            exit;
         }
     } else {
-        setEventMessage($langs->trans('OriginalUrlFail'), 'errors');
+        if ($exportFile == '') {
+            if ((dol_strlen($originalUrl) > 0 || dol_strlen(getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL')) > 0) && $NbUrl > 0) {
+                $shortener = new Shortener($db);
+                $shortener->ref = $shortener->getNextNumRef();
+                $shortener->fk_easyurl_urlexport = $exportUrlId;
+
+                if (dol_strlen($originalUrl) > 0) {
+                    $shortener->original_url = $originalUrl . $urlParameters;
+                } else {
+                    $shortener->original_url = getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL') . $urlParameters;
+                }
+                $shortener->methode = $urlMethode;
+
+                $shortener->create($user);
+
+                $result = set_easy_url_link($shortener, 'none', $urlMethode);
+                if (!empty($result) && is_object($result)) {
+                    http_response_code(500);
+                    print json_encode(['message' => $result->message, 'title' => $langs->trans("Error")]);
+                    exit;
+                } else {
+                    http_response_code(201);
+                    print json_encode(['message' => 'Ok', 'data' => $shortener->id, 'url' => $shortener->original_url]);
+                    exit;
+                }
+            } else {
+                http_response_code(400);
+                print json_encode(['message' => $langs->trans('OriginalUrlFail'), 'title' => $langs->trans("Error")]);
+                exit;
+            }
+        } else {
+            $exportUrl = new UrlExport($db);
+            $exportUrl = $exportUrl->fetchAll('', '', 0, 0, ['rowId' => $exportUrlId]);
+
+            if (count($exportUrl) != -1) {
+                if (empty($exportUrl)) {
+                    http_response_code(404);
+                    print json_encode(['message' => 'Error during exporting url parameters', 'title' => $langs->trans("Error")]);
+                    exit;
+                } else {
+                    $exportUrl = current($exportUrl);
+                    $exportUrl->generateFile();
+
+                    $uploadDir = $conf->easyurl->multidir_output[$conf->entity ?? 1];
+                    $fileDir   = $uploadDir . '/' . $exportUrl->element;
+                    if (dol_is_file($fileDir . '/' . $exportUrl->last_main_doc)) {
+                        $documentUrl = DOL_URL_ROOT . '/document.php';
+                        $fileUrl = $documentUrl . '?modulepart=easyurl&file=' . urlencode($exportUrl->element . '/' . $exportUrl->last_main_doc);
+                        http_response_code(201);
+                        print json_encode(['message' => $langs->trans('ExportSuccess'), 'title' => $langs->trans("Success"), 'download' => '<div><a class="marginleftonly" href="' . $fileUrl . '" download>' . img_picto($langs->trans('File') . ' : ' . $exportUrl->last_main_doc, 'fa-file-csv') . '</a></div>', 'redirect' => dol_buildpath('/custom/easyurl/view/shortener/shortener_list.php', 1)]);
+                        exit;
+                    } else {
+                        http_response_code(500);
+                        print json_encode(['message' => 'Error during exporting url parameters', 'title' => $langs->trans("Error")]);
+                        exit;
+                    }
+                }
+            } else {
+                http_response_code(500);
+                print json_encode(['message' => 'Error during exporting url parameters', 'title' => $langs->trans("Error")]);
+                exit;
+            }
+        }
     }
-    header('Location: ' . $_SERVER['PHP_SELF']);
-    exit;
 }
 
 /*
@@ -111,6 +168,15 @@ if (!getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL')) : ?>
     </div>
 </div>
 <?php endif;
+
+print '
+<div class="wpeo-notice notice-success global-infos notice" style="display: none;">
+    <div class="notice-content">
+        <div class="notice-title"></div>
+    </div>
+    <div class="notice-close"><i class="fas fa-times"></i></div>
+</div>
+';
 
 print load_fiche_titre($langs->trans('GenerateUrlManagement'), '', '');
 
@@ -150,8 +216,49 @@ print '<td><input class="minwidth300" type="text" name="url_parameters"></td>';
 print '</tr>';
 
 print '</table>';
-print $form->buttonsSaveCancel('Generate', '');
+print '<div class="right">';
+print $form->buttonsSaveCancel('Generate', '', [], true);
+print '</div>';
 print '</form>';
+
+print load_fiche_titre($langs->trans('GeneratedExport'), '', '');
+print '<table class="noborder centpercent tab-export">';
+
+print '<tr class="liste_titre">';
+print '<td>' . $langs->trans('ExportId') . '</td>';
+print '<td>' . $langs->trans('ExportNumber') . '</td>';
+print '<td>' . $langs->trans('ExportStart') . '</td>';
+print '<td>' . $langs->trans('ExportEnd') . '</td>';
+print '<td>' . $langs->trans('ExportDate') . '</td>';
+print '<td>' . $langs->trans('ExportOrigin') . '</td>';
+print '<td>' . $langs->trans('ExportConsume') . '</td>';
+print '<td></td>';
+print '</tr>';
+$urlExport = new UrlExport($db);
+$urlExport = $urlExport->fetchAll('DESC', 'rowid');
+
+foreach ($urlExport as $row) {
+    $shortener = new Shortener($db);
+    $shortener = $shortener->fetchAll('', '', 0, 0, ['t.fk_easyurl_urlexport' => $row->id]);
+
+    $uploadDir = $conf->easyurl->multidir_output[$conf->entity ?? 1];
+    $fileDir   = $uploadDir . '/' . $row->element;
+    if (dol_is_file($fileDir . '/' . $row->last_main_doc)) {
+        $documentUrl = DOL_URL_ROOT . '/document.php';
+        $fileUrl     = $documentUrl . '?modulepart=easyurl&file=' . urlencode($row->element . '/' . $row->last_main_doc);
+        print '<tr class="oddeven">';
+        print '<td class="tab-ref">' . $row->ref . '</td>';
+        print '<td class="tab-count">' . count($shortener) . '</td>';
+        print '<td class="tab-first">' . current($shortener)->id . '</td>';
+        print '<td class="tab-end">' . end($shortener)->id . '</td>';
+        print '<td class="tab-date">' . dol_print_date($row->date_creation, 'dayhour') . '</td>';
+        print '<td class="tab-url"><a href="' . current($shortener)->original_url . '"><span class="fas fa-external-link-alt paddingrightonly" style=""></span><span>' . current($shortener)->original_url . '<span></a></td>';
+        print '<td class="tab-uses">' . count(array_filter($shortener, function($elem) {return $elem->status == 0;})) . '</td>';
+        print '<td class="tab-download"><div><a class="marginleftonly" href="' . $fileUrl . '" download>' . img_picto($langs->trans('File') . ' : ' . $row->last_main_doc, 'fa-file-csv') . '</a></div></td>';
+        print '</tr>';
+    }
+}
+print '</table>';
 
 // End of page
 llxFooter();
