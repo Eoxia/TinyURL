@@ -51,4 +51,13 @@ function easyurl_completesubstitutionarray(&$substitutionarray, $langs, $object)
                 break;
         }
     }
+
+    $shortenerLabel = dol_strlen(getDolGlobalString('EASYURL_SHORTENER_SET_LABEL')) > 0 ? getDolGlobalString('EASYURL_SHORTENER_SET_LABEL') : $langs->transnoentities('ShortenerSetLabel');
+    if (strpos($shortenerLabel, '__EASYURL_SHA_') !== false) {
+        require_once DOL_DOCUMENT_ROOT . '/core/lib/ticket.lib.php';
+
+        $SHAshortenerLabel = explode('__EASYURL_SHA_', $shortenerLabel);
+        $SHAshortenerLabel = explode('__', $SHAshortenerLabel[1]);
+        $substitutionarray['__EASYURL_SHA_' . $SHAshortenerLabel[0] . '__'] = generate_random_id($SHAshortenerLabel[0]);
+    }
 }

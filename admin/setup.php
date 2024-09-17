@@ -32,6 +32,7 @@ if (file_exists('../easyurl.main.inc.php')) {
 
 // Load Dolibarr libraries
 require_once DOL_DOCUMENT_ROOT . '/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT . '/core/class/doleditor.class.php';
 
 // Load EasyURL libraries
 require_once __DIR__ . '/../lib/easyurl.lib.php';
@@ -69,6 +70,15 @@ if ($action == 'set_config') {
         dolibarr_set_const($db, 'EASYURL_SIGNATURE_TOKEN_YOURLS_API', $signatureTokenYourlsAPI, 'chaine', 0, '', $conf->entity);
     }
     dolibarr_set_const($db, 'EASYURL_DEFAULT_ORIGINAL_URL', $defaultOriginalURL, 'chaine', 0, '', $conf->entity);
+
+    setEventMessage('SavedConfig');
+    header('Location: ' . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+if ($action == 'set_shortener_label') {
+    $shortenerSetLabel = GETPOST('EASYURL_SHORTENER_SET_LABEL', 'none');
+    dolibarr_set_const($db, 'EASYURL_SHORTENER_SET_LABEL', $shortenerSetLabel, 'chaine', 0, '', $conf->entity);
 
     setEventMessage('SavedConfig');
     header('Location: ' . $_SERVER['PHP_SELF']);
@@ -136,6 +146,42 @@ print '<tr class="oddeven"><td>' . $langs->trans('ManualEasyUrlGeneration') . '<
 print '<td>' . $langs->trans('ManualEasyUrlGenerationDescription') . '</td>';
 print '<td>';
 print ajax_constantonoff('EASYURL_MANUAL_GENERATION');
+print '</td></tr>';
+
+print '</table>';
+print $form->buttonsSaveCancel('Save', '');
+print '</form>';
+
+print load_fiche_titre($langs->trans('Config'), '', '');
+
+print '<form method="post" action="' . $_SERVER['PHP_SELF'] . '">';
+print '<input type="hidden" name="token" value="' .newToken(). '">';
+print '<input type="hidden" name="action" value="set_shortener_label">';
+
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<td>' . $langs->trans('Parameters') . '</td>';
+print '<td>' . $langs->trans('Value') . '</td>';
+print '</tr>';
+
+$substitutionArray = getCommonSubstitutionArray($langs);
+complete_substitutions_array($substitutionArray, $langs);
+
+// Substitution array/string
+$helpForSubstitution = '';
+if (is_array($substitutionArray) && count($substitutionArray)) {
+    $helpForSubstitution .= $langs->trans('AvailableVariables') . ' : <br>';
+}
+foreach ($substitutionArray as $key => $val) {
+    $helpForSubstitution .= $key . ' -> '. $langs->trans(dol_string_nohtmltag(dolGetFirstLineOfText($val))) . '<br>';
+}
+
+// Shortener set label
+$shortenerSetLabel = $langs->transnoentities($conf->global->EASYURL_SHORTENER_SET_LABEL) ?: $langs->transnoentities('ShortenerSetLabel');
+print '<tr class="oddeven"><td>' . $form->textwithpicto($langs->transnoentities('ShortenerSetLabelTitle'), $helpForSubstitution, 1, 'help', '', 0, 2, 'substittooltipfrombody');
+print '</td><td>';
+$dolEditor = new DolEditor('EASYURL_SHORTENER_SET_LABEL', $shortenerSetLabel, '100%', 120, 'dolibarr_details', '', false, true, $conf->global->FCKEDITOR_ENABLE_MAIL, ROWS_2, 70);
+$dolEditor->Create();
 print '</td></tr>';
 
 print '</table>';

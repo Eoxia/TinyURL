@@ -56,19 +56,19 @@ saturne_check_access($permissionToRead);
  */
 
 if ($action == 'generate_url' && $permissionToAdd) {
-    $error         = 0;
-    $urlMethode    = GETPOST('url_methode');
-    $NbUrl         = GETPOST('nb_url');
-    $originalUrl   = GETPOST('original_url');
-    $urlParameters = GETPOST('url_parameters');
+    $error                 = 0;
+    $urlMethode            = GETPOST('url_methode');
+    $NbUrl                 = GETPOST('nb_url');
+    $originalUrl           = GETPOST('original_url');
+    $originalUrlParameters = GETPOST('original_url_parameters');
     if ((dol_strlen($originalUrl) > 0 || dol_strlen(getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL')) > 0) && $NbUrl > 0)  {
         for ($i = 1; $i <= $NbUrl; $i++) {
             $shortener = new Shortener($db);
             $shortener->ref = $shortener->getNextNumRef();
             if (dol_strlen($originalUrl) > 0) {
-                $shortener->original_url = $originalUrl . $urlParameters;
+                $shortener->original_url = $originalUrl . $originalUrlParameters;
             } else {
-                $shortener->original_url = getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL') . $urlParameters;
+                $shortener->original_url = getDolGlobalString('EASYURL_DEFAULT_ORIGINAL_URL') . $originalUrlParameters;
             }
             $shortener->methode = $urlMethode;
 
@@ -144,9 +144,9 @@ print '<td>' .  $langs->trans('OriginalUrlDescription') . (getDolGlobalString('E
 print '<td><input class="minwidth300" type="text" name="original_url"></td>';
 print '</tr>';
 
-print '<tr class="oddeven"><td><label for="url_parameters">' . $langs->trans('UrlParameters') . '</label></td>';
-print '<td>' . $langs->trans('UrlParametersDescription') . '</td>';
-print '<td><input class="minwidth300" type="text" name="url_parameters"></td>';
+print '<tr class="oddeven"><td><label for="original_url_parameters">' . $langs->trans('OriginalUrlParameters') . '</label></td>';
+print '<td>' . $langs->trans('OriginalUrlParametersDescription') . '</td>';
+print '<td><input class="minwidth300" type="text" name="original_url_parameters"></td>';
 print '</tr>';
 
 print '</table>';

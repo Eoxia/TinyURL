@@ -42,6 +42,8 @@ AutomaticEasyUrlGeneration            = Génération automatique des URLs raccou
 AutomaticEasyUrlGenerationDescription = Crée automatiquement l'URL raccourcie lors de la validation d'un objet <br> (proposition commerciale, commande, facture)
 ManualEasyUrlGeneration               = Génération manuelle des URLs raccourcies
 ManualEasyUrlGenerationDescription    = Ajout d'un bouton pour créer une URL raccourcie sur un objet <br> (proposition commerciale, commande, facture)
+ShortenerSetLabel                     = __MYCOMPANY_NAME__-__REF__-__EASYURL_SHA_8__
+ShortenerSetLabelTitle                = Libellé dans l'URL raccourcie
 
 
 
@@ -67,19 +69,19 @@ GetEasyURLErrors     = Erreur : URL raccourcie non trouvée
 #
 
 # Data - Donnée
-GenerateUrlManagement           = Gestion de la génération des raccourcissements d'URLs
-NbUrl                           = Nombre d'URL
-NbUrlDescription                = Cette option permet de choisir le nombre d'URL à générée
-OriginalUrl                     = URL d'origine
-OriginalUrlDescription          = Cette option permet de choisir l'URL d'origine
-OriginalUrlMoreDescription      = <br> (par défaut si aucune URL n'est renseignée alors l'URL par défaut est : <b>%s</b>)
-UrlParameters                   = Paramètre d'URL supplémentaire
-UrlParametersDescription        = Cette option permet d'ajouter des paramètres d'URLs supplémentaires <br> (exemple : un tiret/une valeur)
-UrlMethode                      = Méthode d'API URL
-UrlMethodeDescription           = Cette option permet de choisir la méthode d'API URL utilisée dans le raccourcissement des URLs <br> (deux valeurs possibles : YOURLS ou WordPress)
-GenerateUrlSuccess              = Génération réussie des %d raccourcissements d'URLs
-OriginalUrlFail                 = Erreur(s) possible(s) : <br> - Nombre d'URL est vide <br> - l'URL d'origine est vide <br> - l'URL d'origine par défaut n'as pas été configurée
-DefaultOriginalUrlConfiguration = Vous n'avez pas configuré d'URL d'origine par défaut, veuillez cliquer ici pour vous rendre sur la page de configuration
+GenerateUrlManagement            = Gestion de la génération des raccourcissements d'URLs
+NbUrl                            = Nombre d'URL
+NbUrlDescription                 = Cette option permet de choisir le nombre d'URL à générée
+OriginalUrl                      = URL d'origine
+OriginalUrlDescription           = Cette option permet de choisir l'URL d'origine
+OriginalUrlMoreDescription       = <br> (par défaut si aucune URL n'est renseignée alors l'URL par défaut est : <b>%s</b>)
+OriginalUrlParameters            = Paramètre d'URL d'origine supplémentaire
+OriginalUrlParametersDescription = Cette option permet d'ajouter des paramètres d'URLs d'origine supplémentaires <br> (exemple : un tiret/une valeur)
+UrlMethode                       = Méthode d'API URL
+UrlMethodeDescription            = Cette option permet de choisir la méthode d'API URL utilisée dans le raccourcissement des URLs <br> (deux valeurs possibles : YOURLS ou WordPress)
+GenerateUrlSuccess               = Génération réussie des %d raccourcissements d'URLs
+OriginalUrlFail                  = Erreur(s) possible(s) : <br> - Nombre d'URL est vide <br> - l'URL d'origine est vide <br> - l'URL d'origine par défaut n'as pas été configurée
+DefaultOriginalUrlConfiguration  = Vous n'avez pas configuré d'URL d'origine par défaut, veuillez cliquer ici pour vous rendre sur la page de configuration
 
 
 #
