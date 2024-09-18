@@ -23,6 +23,7 @@
 
 // Load EasyURL libraries
 require_once __DIR__ . '/../lib/easyurl_function.lib.php';
+require_once __DIR__ . '/shortener.class.php';
 
 /**
  * Class ActionsEasyurl
@@ -163,7 +164,7 @@ class ActionsEasyurl
      */
     public function doActions(array $parameters, $object, string $action): int
     {
-        global $conf, $user;
+        global $conf, $langs, $user;
 
         if (in_array($parameters['currentcontext'], ['propalcard', 'ordercard', 'invoicecard', 'contractcard', 'interventioncard'])) {
             if ($action == 'set_easy_url') {
@@ -189,6 +190,22 @@ class ActionsEasyurl
                             $tabParam['EASYURL_SHOW_QRCODE'] = $showQRCode;
 
                             dol_set_user_param($this->db, $conf, $user, $tabParam);
+                        }
+
+                        if ($action == 'unassignShortener') {
+                            $shortenerID = GETPOST('shortener_id');
+                            $shortener   = new Shortener($this->db);
+                            $shortener->fetch($shortenerID);
+
+                            $shortener->status       = Shortener::STATUS_VALIDATED;
+                            $shortener->element_type = '';
+                            $shortener->fk_element   = null;
+                            $shortener->update($user, true);
+                            $shortener->call_trigger('SHORTENER_UNASSIGN', $user);
+
+                            setEventMessages($langs->trans('UnassignShortenerSuccess', $shortener->ref), []);
+                            header('Location: ' . $_SERVER['PHP_SELF'] . '?id=' . $object->id);
+                            exit;
                         }
                     }
                 }

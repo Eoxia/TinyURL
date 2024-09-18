@@ -99,6 +99,9 @@ NoLinkedElement           = Aucun élément lié
 ShortenerRepartition      = Répartition des raccourcissements d'URLs par %s
 ShortenerUrlType          = Liste des types d'URLs
 ShowQRCode                = Afficher le QRCode de l'URL raccourcie
+Unassign                  = Désaffecter
+UnassignShortenerSuccess  = Désaffectation du raccourcissement d'URL <strong>%s</strong>
+ObjectUnAssignTrigger     = %s %s désaffectée
 
 # Fiels - Champ
 ShortUrl = URL raccourcie

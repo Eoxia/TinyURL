@@ -116,7 +116,7 @@ class Shortener extends SaturneObject
         'import_key'    => ['type' => 'varchar(14)',                        'label' => 'ImportId',         'enabled' => 1, 'position' => 60,  'notnull' => 0, 'visible' => 0],
         'status'        => ['type' => 'smallint',                           'label' => 'Status',           'enabled' => 1, 'position' => 160, 'notnull' => 1, 'visible' => 2, 'default' => 0, 'index' => 1, 'arrayofkeyval' => [0 => 'StatusDraft', 1 => 'ValidatePendingAssignment', 10 => 'Assign'], 'css' => 'minwidth100 maxwidth300 widthcentpercentminusxx'],
         'label'         => ['type' => 'varchar(255)',                       'label' => 'Label',            'enabled' => 1, 'position' => 70,  'notnull' => 1, 'visible' => 5, 'searchall' => 1, 'css' => 'minwidth100 maxwidth300 widthcentpercentminusxx', 'cssview' => 'wordbreak', 'showoncombobox' => 2, 'validate' => 1],
-        'short_url'     => ['type' => 'url',                                'label' => 'ShortUrl',         'enabled' => 1, 'position' => 80,  'notnull' => 0, 'visible' => 1, 'copytoclipboard' => 1, 'css' => 'minwidth100 maxwidth300 widthcentpercentminusxx nowrap'],
+        'short_url'     => ['type' => 'url',                                'label' => 'ShortUrl',         'enabled' => 1, 'position' => 80,  'notnull' => 0, 'visible' => 1, 'noteditable' => 1, 'copytoclipboard' => 1, 'css' => 'minwidth100 maxwidth300 widthcentpercentminusxx nowrap'],
         'original_url'  => ['type' => 'url',                                'label' => 'OriginalUrl',      'enabled' => 1, 'position' => 90,  'notnull' => 0, 'visible' => 1, 'copytoclipboard' => 1, 'css' => 'minwidth100 maxwidth300 widthcentpercentminusxx nowrap'],
         'type'          => ['type' => 'sellist:c_shortener_url_type:label', 'label' => 'UrlType',          'enabled' => 1, 'position' => 100, 'notnull' => 0, 'visible' => 1, 'css' => 'maxwidth150 widthcentpercentminusxx'],
         'methode'       => ['type' => 'select',                             'label' => 'UrlMethode',       'enabled' => 1, 'position' => 110, 'notnull' => 0, 'visible' => 5, 'arrayofkeyval' => ['' => '', 'yourls' => 'YOURLS', 'wordpress' => 'WordPress'], 'css' => 'maxwidth200 widthcentpercentminusxx', 'csslist' => 'minwidth150 center', 'help' => 'UrlMethodeDescription'],
@@ -282,6 +282,26 @@ class Shortener extends SaturneObject
     }
 
     /**
+     * Write information of trigger description
+     *
+     * @param  SaturneObject $object Object calling the trigger
+     * @return string                Description to display in actioncomm->note_private
+     */
+    public function getTriggerDescription(SaturneObject $object): string
+    {
+        global $langs;
+
+        $ret  = parent::getTriggerDescription($object);
+        $ret .= (dol_strlen($object->short_url) > 0 ? $langs->transnoentities('ShortUrl') . ' : ' . $object->short_url . '</br>' : '');
+        $ret .= (dol_strlen($object->original_url) > 0 ? $langs->transnoentities('OriginalUrl') . ' : ' . $object->original_url . '</br>' : '');
+        $ret .= (!empty($object->methode) ? $langs->transnoentities('UrlMethode') . ' : ' . $object->methode . '</br>' : '');
+        $ret .= (!empty($object->element_type) ? $langs->transnoentities('ElementType') . ' : ' . $object->element_type . '</br>' : '');
+        $ret .= (!empty($object->fk_element) ? $langs->transnoentities('FkElement') . ' : ' . $object->fk_element . '</br>' : '');
+
+        return $ret;
+    }
+
+    /**
      * Load dashboard info
      *
      * @return array
@@ -442,7 +462,7 @@ class Shortener extends SaturneObject
         $out .= $form->textwithpicto('', $langs->trans('ShowQRCode'));
         $out .= '</td>';
         $out .= '<td>' . $langs->trans('OriginalUrl') . '</td>';
-        $out .= '<td class="center">' . dolButtonToOpenUrlInDialogPopup('assignShortener', $langs->transnoentities('AssignShortener'), '<span class="fa fa fa-link valignmiddle btnTitle-icon" title="' . $langs->trans('Assign') . '"></span>', '/custom/easyurl/view/shortener/shortener_card.php?element_type=' . $element_type . '&fk_element=' . $object->id . '&from_element=1&action=edit_assign&backtopage=' . urlencode($_SERVER['PHP_SELF'] . '?id=' . $object->id), '', 'btnTitle') . '</td>';
+        $out .= '<td class="center">' . dolButtonToOpenUrlInDialogPopup('assignShortener', $langs->transnoentities('AssignShortener'), '<span class="fas fa-link fa-2x valignmiddle btnTitle-icon" title="' . $langs->trans('Assign') . '"></span>', '/custom/easyurl/view/shortener/shortener_card.php?element_type=' . $element_type . '&fk_element=' . $object->id . '&from_element=1&action=edit_assign', '', 'btnTitle') . '</td>';
         $out .= '</thead></tr>';
         $out .= '<tbody>';
 
@@ -453,7 +473,8 @@ class Shortener extends SaturneObject
                 $out .= '<td class="minwidth100">' . getDictionaryValue('c_shortener_url_type', 'label', $shortener->type) . '</td>';
                 $out .= '<td>' . ($user->conf->EASYURL_SHOW_QRCODE ? saturne_show_medias_linked('easyurl', $conf->easyurl->multidir_output[$conf->entity] . '/shortener/' . $shortener->ref . '/qrcode/', 'small', 1, 0, 0, 0, 80, 80, 0, 0, 1, 'shortener/'. $shortener->ref . '/qrcode/', $shortener, '', 0, 0) : $shortener->showOutputField($this->fields['short_url'], 'short_url', $shortener->short_url)) . '</td>';
                 $out .= '<td>' . $shortener->showOutputField($this->fields['original_url'], 'original_url', $shortener->original_url) . '</td>';
-                $out .= '<td class="center">' . ($user->rights->easyurl->shortener->write > 0 ? '<a class="editfielda" href="' . dol_buildpath('/custom/easyurl/view/shortener/shortener_card.php?id='. $shortener->id . '&element_type=' . $element_type . '&fk_element=' . $object->id . '&from_element_type=1&token=' . newToken() . '&action=edit&backtopage=' . urlencode($_SERVER['PHP_SELF'] . '?id=' . $object->id), 1) . '">' . img_edit($langs->trans('Modify')) . '</a>' : '') . '</td>';
+                $out .= '<td class="center">' . ($user->rights->easyurl->shortener->write > 0 ? '<a class="editfielda" href="' . dol_buildpath('/custom/easyurl/view/shortener/shortener_card.php?id='. $shortener->id . '&element_type=' . $element_type . '&fk_element=' . $object->id . '&from_element=1&token=' . newToken() . '&action=edit&backtopage=' . urlencode($_SERVER['PHP_SELF'] . '?id=' . $object->id), 1) . '">' . img_picto($langs->trans('Modify'), 'edit', 'class="paddingright"') . '</a>' : '');
+                $out .= ($user->rights->easyurl->shortener->delete > 0 ? '<a class="editfielda" href="' . $_SERVER['PHP_SELF'] . '?id=' . $object->id . '&shortener_id=' . $shortener->id . '&action=unassignShortener&token=' . newToken() . '">' . img_picto($langs->trans('Unassign'), 'unlink') . '</a>' : '') . '</td>';
                 $out .= '</tr>';
             }
         } else {

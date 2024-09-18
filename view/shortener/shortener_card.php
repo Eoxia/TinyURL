@@ -224,8 +224,10 @@ if (($id || $ref) && $action == 'edit') {
         $object->fields['fk_element']['label'] = $langs->trans($objectsMetadata['langs']);
 
         if (GETPOST('from_element', 'int') > 0) {
-            $object->fields['element_type']['visible'] = 0;
-            $object->fields['fk_element']['visible']   = 0;
+            $object->fields['label']['noteditable']        = 1;
+            $object->fields['element_type']['noteditable'] = 1;
+            $object->fields['fk_element']['picto']         = '';
+            $object->fields['fk_element']['noteditable']   = 1;
         }
     }
 
