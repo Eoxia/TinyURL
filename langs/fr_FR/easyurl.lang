@@ -44,6 +44,9 @@ ManualEasyUrlGeneration               = Génération manuelle des URLs raccourci
 ManualEasyUrlGenerationDescription    = Ajout d'un bouton pour créer une URL raccourcie sur un objet <br> (proposition commerciale, commande, facture)
 WarningApiCredentialsIncorrect        = Les informations d'API sont incorrects
 
+# Public interface - Interface publique
+OfAssignShortener = d'affectation de raccourcissement d'URL
+
 
 
 #
@@ -118,3 +121,10 @@ ShowQRCode                = Afficher le QRCode de l'URL raccourcie
 # Fiels - Champ
 ShortUrl = URL raccourcie
 UrlType  = Type d'URL
+
+# Public interface - Interface publique
+AssignQRCode        = Affectation de QR Code
+NumProductLot       = N° du lot/série
+NumQRCode           = N° du QRCode
+AssignQRCodeSuccess = Affectation réussie du QRCode
+AssignQRCodeErrors  = Erreur : affectation du QRCode

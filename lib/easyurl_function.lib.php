@@ -200,7 +200,7 @@ function update_easy_url_link(CommonObject $object): int
         'action'    => 'update',
         'signature' => $conf->global->EASYURL_SIGNATURE_TOKEN_YOURLS_API,
         'format'    => 'json',
-        'shorturl'  => $object->label,
+        'shorturl'  => $object->short_url,
         'url'       => $object->original_url
     ]);
 

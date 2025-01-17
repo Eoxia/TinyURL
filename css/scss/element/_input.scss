@@ -1,0 +1,22 @@
+.page-public-card {
+  .select2-container--default .select2-selection--single {
+    border: 3px solid $color__public-secondary;
+    border-radius: 10px !important;
+    font-size: 18px;
+    color: $color__public-primary;
+    width: 100%;
+    transition: all 0.2s ease-out;
+    height: auto;
+
+    .select2-selection__rendered {
+      padding-top: 0.4em;
+      padding-bottom: 0.4em;
+    }
+    .select2-selection__arrow {
+      height: 100%;
+    }
+  }
+  .select2-container--focus span.select2-selection.select2-selection--single {
+    border-bottom: 3px solid $color__public-secondary !important;
+  }
+}
